@@ -36,11 +36,11 @@ void AC_PrecLand_SITL_Gazebo::update()
             AP_HAL::millis(),
             _los_meas_time_ms,
             AP_HAL::millis()-_los_meas_time_ms,
-            abs(AP_HAL::millis()-_los_meas_time_ms),
-            abs(AP_HAL::millis()-_los_meas_time_ms) <= 1000);
+            static_cast<int>(AP_HAL::millis()-_los_meas_time_ms),
+            static_cast<int>(AP_HAL::millis()-_los_meas_time_ms) <= 1000);
     }
 
-    _have_los_meas = _have_los_meas && abs(AP_HAL::millis()-_los_meas_time_ms) <= 1000;
+    _have_los_meas = _have_los_meas && static_cast<int>(AP_HAL::millis()-_los_meas_time_ms) <= 1000;
     // _have_los_meas = true;
 }
 
