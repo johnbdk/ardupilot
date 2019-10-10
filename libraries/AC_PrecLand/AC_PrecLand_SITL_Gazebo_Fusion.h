@@ -40,7 +40,7 @@ public:
 	// return true if the fusion of irlock and marker vectors were successful
 	bool fuse_vectors();
 
-	int8_t which_sensor();
+	int8_t which_sensor() override;
 
 	// returns distance to target in meters (0 means distance is not known)
     float distance_to_target() override;
