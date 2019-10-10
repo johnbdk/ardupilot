@@ -9,6 +9,7 @@ extern const AP_HAL::HAL& hal;
 AC_PrecLand_SITL_Gazebo::AC_PrecLand_SITL_Gazebo(const AC_PrecLand& frontend, AC_PrecLand::precland_state& state)
     : AC_PrecLand_Backend(frontend, state),
       irlock()
+      // _los_meas_time_ms(0)
 {
 }
 
@@ -31,8 +32,16 @@ void AC_PrecLand_SITL_Gazebo::update()
         irlock.get_unit_vector_body(_los_meas_body);
         _have_los_meas = true;
         _los_meas_time_ms = irlock.last_update_ms();
+        printf("hal_time %u, los_time %u, diff %d, |diff| %d, healthy %d\n",
+            AP_HAL::millis(),
+            _los_meas_time_ms,
+            AP_HAL::millis()-_los_meas_time_ms,
+            abs(AP_HAL::millis()-_los_meas_time_ms),
+            abs(AP_HAL::millis()-_los_meas_time_ms) <= 1000);
     }
-    _have_los_meas = _have_los_meas && AP_HAL::millis()-_los_meas_time_ms <= 1000;
+
+    _have_los_meas = _have_los_meas && abs(AP_HAL::millis()-_los_meas_time_ms) <= 1000;
+    // _have_los_meas = true;
 }
 
 // provides a unit vector towards the target in body frame

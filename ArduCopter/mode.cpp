@@ -31,6 +31,12 @@ Mode *Copter::mode_from_mode_num(const Mode::Number mode)
     Mode *ret = nullptr;
 
     switch (mode) {
+#if MODE_MARKER_ENABLED == ENABLED
+        case Mode::Number::MARKER:
+            ret = &mode_marker;
+            break;
+#endif
+
 #if MODE_ACRO_ENABLED == ENABLED
         case Mode::Number::ACRO:
             ret = &mode_acro;
@@ -191,6 +197,12 @@ bool Copter::set_mode(Mode::Number mode, ModeReason reason)
     }
 
     Mode *new_flightmode = mode_from_mode_num((Mode::Number)mode);
+#if MODE_MARKER_ENABLED == ENABLED
+    if (new_flightmode == &mode_marker) {
+        new_flightmode = &mode_land;
+        gcs().send_text(MAV_SEVERITY_CRITICAL, "Changed from MARKER to LAND mode!");
+    }
+#endif
     if (new_flightmode == nullptr) {
         gcs().send_text(MAV_SEVERITY_WARNING,"No such mode");
         AP::logger().Write_Error(LogErrorSubsystem::FLIGHT_MODE, LogErrorCode(mode));

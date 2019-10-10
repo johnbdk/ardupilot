@@ -94,6 +94,7 @@ void SITL_State::_usage(void)
            "\t--sim-port-in PORT       set port num for simulator in\n"
            "\t--sim-port-out PORT      set port num for simulator out\n"
            "\t--irlock-port PORT       set port num for irlock\n"
+           "\t--marker-port PORT       set port num for marker\n"
         );
 }
 
@@ -193,10 +194,12 @@ void SITL_State::_parse_command_line(int argc, char * const argv[])
     const int SIM_IN_PORT = 9003;
     const int SIM_OUT_PORT = 9002;
     const int IRLOCK_PORT = 9005;
+    const int MARKER_PORT = 9008;
     const char * simulator_address = "127.0.0.1";
     uint16_t simulator_port_in = SIM_IN_PORT;
     uint16_t simulator_port_out = SIM_OUT_PORT;
     _irlock_port = IRLOCK_PORT;
+    _marker_port = MARKER_PORT;
 
     enum long_options {
         CMDLINE_GIMBAL = 1,
@@ -218,6 +221,7 @@ void SITL_State::_parse_command_line(int argc, char * const argv[])
         CMDLINE_SIM_PORT_IN,
         CMDLINE_SIM_PORT_OUT,
         CMDLINE_IRLOCK_PORT,
+        CMDLINE_MARKER_PORT,
     };
 
     const struct GetOptLong::option options[] = {
@@ -253,6 +257,7 @@ void SITL_State::_parse_command_line(int argc, char * const argv[])
         {"sim-port-in",     true,   0, CMDLINE_SIM_PORT_IN},
         {"sim-port-out",    true,   0, CMDLINE_SIM_PORT_OUT},
         {"irlock-port",     true,   0, CMDLINE_IRLOCK_PORT},
+        {"marker-port",     true,   0, CMDLINE_MARKER_PORT},
         {0, false, 0, 0}
     };
 
@@ -307,6 +312,9 @@ void SITL_State::_parse_command_line(int argc, char * const argv[])
             }
             if (_irlock_port == IRLOCK_PORT) {
                 _irlock_port += _instance * 10;
+            }
+            if (_marker_port == MARKER_PORT) {
+                _marker_port += _instance * 10;
             }
         }
         break;
@@ -370,6 +378,9 @@ void SITL_State::_parse_command_line(int argc, char * const argv[])
             break;
         case CMDLINE_IRLOCK_PORT:
             _irlock_port = atoi(gopt.optarg);
+            break;
+        case CMDLINE_MARKER_PORT:
+            _marker_port = atoi(gopt.optarg);
             break;
         default:
             _usage();

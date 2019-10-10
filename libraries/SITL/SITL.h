@@ -329,6 +329,7 @@ public:
     }
 
     uint16_t irlock_port;
+    uint16_t marker_port;
 
     void simstate_send(mavlink_channel_t chan);
 

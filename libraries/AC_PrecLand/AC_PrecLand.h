@@ -3,6 +3,7 @@
 #include <AP_Math/AP_Math.h>
 #include <GCS_MAVLink/GCS_MAVLink.h>
 #include <stdint.h>
+#include <iostream>
 #include "PosVelEKF.h"
 #include <AP_HAL/utility/RingBuffer.h>
 
@@ -12,6 +13,8 @@ class AC_PrecLand_Companion;
 class AC_PrecLand_IRLock;
 class AC_PrecLand_SITL_Gazebo;
 class AC_PrecLand_SITL;
+class AC_PrecLand_SITL_Gazebo_Marker;
+class AC_PrecLand_SITL_Gazebo_Fusion;
 
 class AC_PrecLand
 {
@@ -21,6 +24,8 @@ class AC_PrecLand
     friend class AC_PrecLand_IRLock;
     friend class AC_PrecLand_SITL_Gazebo;
     friend class AC_PrecLand_SITL;
+    friend class AC_PrecLand_SITL_Gazebo_Marker;
+    friend class AC_PrecLand_SITL_Gazebo_Fusion;
 
 public:
     AC_PrecLand();
@@ -43,6 +48,8 @@ public:
         PRECLAND_TYPE_IRLOCK,
         PRECLAND_TYPE_SITL_GAZEBO,
         PRECLAND_TYPE_SITL,
+        PRECLAND_TYPE_SITL_GAZEBO_MARKER,
+        PRECLAND_TYPE_SITL_GAZEBO_FUSION,
     };
 
     // perform any required initialisation of landing controllers

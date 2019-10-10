@@ -105,6 +105,9 @@ void SITL_State::_sitl_setup(const char *home_str)
 
         fprintf(stdout, "Using Irlock at port : %d\n", _irlock_port);
         _sitl->irlock_port = _irlock_port;
+
+        fprintf(stdout, "Using Marker at port : %d\n", _marker_port);
+        _sitl->marker_port = _marker_port;
     }
 
     if (_synthetic_clock_mode) {

@@ -66,7 +66,7 @@ bool AP_IRLock_SITL_Gazebo::update()
       reply packet sent from simulator to ArduPilot
      */
     struct irlock_packet {
-        uint64_t timestamp;  // in miliseconds
+        uint32_t timestamp;  // in miliseconds
         uint16_t num_targets;
         float pos_x;
         float pos_y;
@@ -79,10 +79,14 @@ bool AP_IRLock_SITL_Gazebo::update()
     bool new_data = false;
 
     if (s == sizeof(irlock_packet) && pkt.timestamp > _last_timestamp) {
-        // fprintf(stderr, "     posx %f posy %f sizex %f sizey %f\n", pkt.pos_x, pkt.pos_y, pkt.size_x, pkt.size_y);
+        // printf("1:posx %f posy %f, time %lu\n", pkt.pos_x, pkt.pos_y, pkt.timestamp);
         _target_info.timestamp = pkt.timestamp;
+        // _target_info.pos_x = tanf(pkt.pos_x);
+        // _target_info.pos_y = tanf(pkt.pos_y);
         _target_info.pos_x = pkt.pos_x;
         _target_info.pos_y = pkt.pos_y;
+        // printf("2:posx %f posy %f\n", _target_info.pos_x, _target_info.pos_y);
+        _target_info.pos_z = 1.0f;
         _last_timestamp = pkt.timestamp;
         _last_update_ms = _last_timestamp;
         new_data = true;
