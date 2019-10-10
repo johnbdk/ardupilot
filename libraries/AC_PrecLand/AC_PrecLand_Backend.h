@@ -37,6 +37,8 @@ public:
     // parses a mavlink message from the companion computer
     virtual void handle_msg(const mavlink_message_t &msg) {};
 
+    virtual int8_t which_sensor() { return 0; };
+
     // get bus parameter
     int8_t get_bus(void) const { return _frontend._bus.get(); }
     

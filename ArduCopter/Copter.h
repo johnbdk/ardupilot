@@ -225,6 +225,7 @@ public:
     friend class ModeThrow;
     friend class ModeZigZag;
     friend class ModeAutorotate;
+    friend class ModeMarker;
 
     Copter(void);
 
@@ -897,6 +898,9 @@ private:
 #endif
 
     Mode *flightmode;
+#if MODE_MARKER_ENABLED == ENABLED
+    ModeMarker mode_marker;
+#endif
 #if MODE_ACRO_ENABLED == ENABLED
 #if FRAME_CONFIG == HELI_FRAME
     ModeAcro_Heli mode_acro;

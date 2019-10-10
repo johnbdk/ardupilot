@@ -7,6 +7,8 @@
 #include "AC_PrecLand_IRLock.h"
 #include "AC_PrecLand_SITL_Gazebo.h"
 #include "AC_PrecLand_SITL.h"
+#include "AC_PrecLand_SITL_Gazebo_Marker.h"
+#include "AC_PrecLand_SITL_Gazebo_Fusion.h"
 
 #include <AP_AHRS/AP_AHRS.h>
 
@@ -23,7 +25,7 @@ const AP_Param::GroupInfo AC_PrecLand::var_info[] = {
     // @Param: TYPE
     // @DisplayName: Precision Land Type
     // @Description: Precision Land Type
-    // @Values: 0:None, 1:CompanionComputer, 2:IRLock, 3:SITL_Gazebo, 4:SITL
+    // @Values: 0:None, 1:CompanionComputer, 2:IRLock, 3:SITL_Gazebo, 4:SITL, 5:SITL_Gazebo_Marker, 6:SITL_Gazebo_Fusion
     // @User: Advanced
     AP_GROUPINFO("TYPE",    1, AC_PrecLand, _type, 0),
 
@@ -170,6 +172,11 @@ void AC_PrecLand::init(uint16_t update_rate_hz)
         case PRECLAND_TYPE_SITL:
             _backend = new AC_PrecLand_SITL(*this, _backend_state);
             break;
+        case PRECLAND_TYPE_SITL_GAZEBO_MARKER:
+            _backend = new AC_PrecLand_SITL_Gazebo_Marker(*this, _backend_state);
+            break;
+        case PRECLAND_TYPE_SITL_GAZEBO_FUSION:
+            _backend = new AC_PrecLand_SITL_Gazebo_Fusion(*this, _backend_state);
 #endif
     }
 
@@ -388,27 +395,43 @@ bool AC_PrecLand::construct_pos_meas_using_rangefinder(float rangefinder_alt_m, 
 {
     Vector3f target_vec_unit_body;
     if (retrieve_los_meas(target_vec_unit_body)) {
+        // bool marker_land = (enum PrecLandType)_type.get() == PRECLAND_TYPE_SITL_GAZEBO_MARKER;
+        // float marker_alt = target_vec_unit_body.z;
+        // if (marker_land) {
+            // printf("B, x:%f, y:%f, z:%f\n", target_vec_unit_body.x, target_vec_unit_body.y, target_vec_unit_body.z);
+            // target_vec_unit_body /= target_vec_unit_body.length();
+            // printf("A, x:%f, y:%f, z:%f\n", target_vec_unit_body.x, target_vec_unit_body.y, target_vec_unit_body.z);
+        // }
         const struct inertial_data_frame_s *inertial_data_delayed = (*_inertial_history)[0];
-
+        //printf("0 x:%f, y:%f, z:%f\n", target_vec_unit_body.x, target_vec_unit_body.y, target_vec_unit_body.z);
         Vector3f target_vec_unit_ned = inertial_data_delayed->Tbn * target_vec_unit_body;
+        //printf("1 x:%f, y:%f, z:%f\n", target_vec_unit_ned.x, target_vec_unit_ned.y, target_vec_unit_ned.z);
+
         bool target_vec_valid = target_vec_unit_ned.z > 0.0f;
         bool alt_valid = (rangefinder_alt_valid && rangefinder_alt_m > 0.0f) || (_backend->distance_to_target() > 0.0f);
-        if (target_vec_valid && alt_valid) {
+        // printf("2 alt_valid:%d, rangefinder_alt_valid:%d, rangefinder_alt_m:%f\n", alt_valid, rangefinder_alt_valid, rangefinder_alt_m);
+        if ((target_vec_valid && alt_valid)/* || marker_land*/) {
             float dist, alt;
-            if (_backend->distance_to_target() > 0.0f) {
+            // if (marker_land) {
+            //     alt = MAX(marker_alt, 0.0f);
+            //     dist = alt / target_vec_unit_ned.z;
+            //     // //printf("3 alt:%f, dist:%f\n", alt, dist);
+            /*} else */if (_backend->distance_to_target() > 0.0f && _backend->which_sensor() < 2) {
                 dist = _backend->distance_to_target();
                 alt = dist * target_vec_unit_ned.z;
+                printf("4 alt:%f, dist:%f\n", alt, dist);
             } else {
                 alt = MAX(rangefinder_alt_m, 0.0f);
                 dist = alt / target_vec_unit_ned.z;
+                printf("5 alt:%f, dist:%f\n", alt, dist);
             }
 
             // Compute camera position relative to IMU
             Vector3f accel_body_offset = AP::ins().get_imu_pos_offset(AP::ahrs().get_primary_accel_index());
             Vector3f cam_pos_ned = inertial_data_delayed->Tbn * (_cam_offset.get() - accel_body_offset);
-
             // Compute target position relative to IMU
             _target_pos_rel_meas_NED = Vector3f(target_vec_unit_ned.x*dist, target_vec_unit_ned.y*dist, alt) + cam_pos_ned;
+            printf("6 x:%f, y:%f, z:%f\n", _target_pos_rel_meas_NED.x, _target_pos_rel_meas_NED.y, _target_pos_rel_meas_NED.z);
             return true;
         }
     }
@@ -428,7 +451,7 @@ void AC_PrecLand::run_output_prediction()
         _target_pos_rel_out_NE.x += _target_vel_rel_out_NE.x * inertial_data->dt;
         _target_pos_rel_out_NE.y += _target_vel_rel_out_NE.y * inertial_data->dt;
     }
-
+    // printf("7 x:%f, y:%f\n", _target_pos_rel_out_NE.x, _target_pos_rel_out_NE.y);
     const AP_AHRS &_ahrs = AP::ahrs();
 
     const Matrix3f& Tbn = (*_inertial_history)[_inertial_history->available()-1]->Tbn;

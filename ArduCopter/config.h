@@ -228,6 +228,9 @@
  # define PRECISION_LANDING ENABLED
 #endif
 
+#ifndef PREC_LAND_MARKER
+ # define PREC_LAND_MARKER ENABLED
+#endif
 //////////////////////////////////////////////////////////////////////////////
 // gripper - enabled only on larger firmwares
 #ifndef GRIPPER_ENABLED
@@ -310,6 +313,12 @@
 // Guided mode - control vehicle's position or angles from GCS
 #ifndef MODE_GUIDED_ENABLED
 # define MODE_GUIDED_ENABLED ENABLED
+#endif
+
+//////////////////////////////////////////////////////////////////////////////
+// Marker mode - control vehicle's landing using visual marker
+#ifndef MODE_MARKER_ENABLED
+# define MODE_MARKER_ENABLED ENABLED
 #endif
 
 //////////////////////////////////////////////////////////////////////////////
