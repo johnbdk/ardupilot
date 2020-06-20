@@ -10,7 +10,8 @@
 [submodule "modules/mavlink"]
 	path = modules/mavlink
 	#url = git://github.com/ArduPilot/mavlink
-	url = git://github.com/johnbdk/mavlink/tree/apm_precland_msg
+	url = git://github.com/johnbdk/mavlink.git
+	#branch = apm_precland_msg
 	#https://github.com/johnbdk/mavlink/tree/apm_precland_msg
 [submodule "gtest"]
 	path = modules/gtest
