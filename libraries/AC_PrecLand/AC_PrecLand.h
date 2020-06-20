@@ -3,9 +3,14 @@
 #include <AP_Math/AP_Math.h>
 #include <GCS_MAVLink/GCS_MAVLink.h>
 #include <stdint.h>
-#include <iostream>
+#include <stdlib.h>
 #include "PosVelEKF.h"
 #include <AP_HAL/utility/RingBuffer.h>
+#include <AP_Baro/AP_Baro.h>
+
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#include <iostream>
+#endif
 
 // declare backend classes
 class AC_PrecLand_Backend;
@@ -13,6 +18,8 @@ class AC_PrecLand_Companion;
 class AC_PrecLand_IRLock;
 class AC_PrecLand_SITL_Gazebo;
 class AC_PrecLand_SITL;
+class AC_PrecLand_Marker;
+class AC_PrecLand_Fusion;
 class AC_PrecLand_SITL_Gazebo_Marker;
 class AC_PrecLand_SITL_Gazebo_Fusion;
 
@@ -24,6 +31,8 @@ class AC_PrecLand
     friend class AC_PrecLand_IRLock;
     friend class AC_PrecLand_SITL_Gazebo;
     friend class AC_PrecLand_SITL;
+    friend class AC_PrecLand_Marker;
+    friend class AC_PrecLand_Fusion;
     friend class AC_PrecLand_SITL_Gazebo_Marker;
     friend class AC_PrecLand_SITL_Gazebo_Fusion;
 
@@ -48,8 +57,10 @@ public:
         PRECLAND_TYPE_IRLOCK,
         PRECLAND_TYPE_SITL_GAZEBO,
         PRECLAND_TYPE_SITL,
+        PRECLAND_TYPE_MARKER,
+        PRECLAND_TYPE_FUSION,
         PRECLAND_TYPE_SITL_GAZEBO_MARKER,
-        PRECLAND_TYPE_SITL_GAZEBO_FUSION,
+        PRECLAND_TYPE_SITL_GAZEBO_FUSION
     };
 
     // perform any required initialisation of landing controllers
@@ -81,13 +92,21 @@ public:
     bool get_target_position_cm(Vector2f& ret);
 
     // returns target relative position as 3D vector
-    void get_target_position_measurement_cm(Vector3f& ret);
+    bool get_target_position_measurement_cm(Vector3f& ret);
 
     // returns target position relative to vehicle
     bool get_target_position_relative_cm(Vector2f& ret);
 
     // returns target velocity relative to vehicle
     bool get_target_velocity_relative_cms(Vector2f& ret);
+
+    bool get_unit_los_body_cm(Vector3f& ret);
+
+    bool get_unit_los_body_trans_cm(Vector3f& ret);
+
+    bool get_los_body_cm(Vector3f& ret);
+
+    bool get_distance_cm(float& ret);
 
     // returns true when the landing target has been detected
     bool target_acquired();
@@ -98,14 +117,20 @@ public:
     // parameter var table
     static const struct AP_Param::GroupInfo var_info[];
 
+    // returns enabled parameter as an behaviour
+    enum PrecLandBehaviour get_behaviour() const { return (enum PrecLandBehaviour)(_enabled.get()); }
+
+    // search altitude for the cautious land behaviour
+    AP_Float _search_alt;
+    AP_Float _stop_search_alt;
+    AP_Float _hover_search_time;
+    AP_Int32 _max_search_attemps;
+
 private:
     enum estimator_type_t {
         ESTIMATOR_TYPE_RAW_SENSOR = 0,
         ESTIMATOR_TYPE_KALMAN_FILTER = 1
     };
-
-    // returns enabled parameter as an behaviour
-    enum PrecLandBehaviour get_behaviour() const { return (enum PrecLandBehaviour)(_enabled.get()); }
 
     // run target position estimator
     void run_estimator(float rangefinder_alt_m, bool rangefinder_alt_valid);
@@ -135,6 +160,7 @@ private:
     uint32_t                    _last_update_ms;    // system time in millisecond when update was last called
     bool                        _target_acquired;   // true if target has been seen recently
     uint32_t                    _last_backend_los_meas_ms;  // system time target was last seen
+    uint32_t                    _last_backend_los_meas_ms_log;  // system time target was last seen used for log
 
     PosVelEKF                   _ekf_x, _ekf_y;     // Kalman Filter for x and y axis
     uint32_t                    _outlier_reject_count;  // mini-EKF's outlier counter (3 consecutive outliers lead to EKF accepting updates)
@@ -146,6 +172,11 @@ private:
 
     Vector2f                    _target_pos_rel_out_NE; // target's position relative to the camera, fed into position controller
     Vector2f                    _target_vel_rel_out_NE; // target's velocity relative to the CG, fed into position controller
+
+    float       _distance;
+    Vector3f    _target_unit_pos_trans;
+    Vector3f    _target_unit_pos;
+    Vector3f    _target_pos_trans;
 
     // structure and buffer to hold a history of vehicle velocity
     struct inertial_data_frame_s {

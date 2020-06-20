@@ -7,10 +7,14 @@
 #include "AC_PrecLand_IRLock.h"
 #include "AC_PrecLand_SITL_Gazebo.h"
 #include "AC_PrecLand_SITL.h"
+#include "AC_PrecLand_Marker.h"
+#include "AC_PrecLand_Fusion.h"
 #include "AC_PrecLand_SITL_Gazebo_Marker.h"
 #include "AC_PrecLand_SITL_Gazebo_Fusion.h"
 
-#include <AP_AHRS/AP_AHRS.h>
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+#include <iostream>
+#endif
 
 extern const AP_HAL::HAL& hal;
 
@@ -18,7 +22,7 @@ const AP_Param::GroupInfo AC_PrecLand::var_info[] = {
     // @Param: ENABLED
     // @DisplayName: Precision Land enabled/disabled and behaviour
     // @Description: Precision Land enabled/disabled and behaviour
-    // @Values: 0:Disabled, 1:Enabled
+    // @Values: 0:Disabled, 1:AlwaysLand, 2:Cautious
     // @User: Advanced
     AP_GROUPINFO_FLAGS("ENABLED", 0, AC_PrecLand, _enabled, 0, AP_PARAM_FLAG_ENABLE),
 
@@ -112,6 +116,35 @@ const AP_Param::GroupInfo AC_PrecLand::var_info[] = {
     // @RebootRequired: True
     AP_GROUPINFO("LAG", 9, AC_PrecLand, _lag, 0.02f), // 20ms is the old default buffer size (8 frames @ 400hz/2.5ms)
 
+    // @Param: SRCH_ALT
+    // @DisplayName: Search altitude
+    // @Description: Search altitude when vehicle is in the Cautious land behaviour
+    // @Units: m
+    // @User: Advanced
+    AP_GROUPINFO("SRCH_ALT", 10, AC_PrecLand, _search_alt, 10.0f),
+
+    // @Param: S_SRCH_ALT
+    // @DisplayName: Stop search alt
+    // @Description: Stop Search altitude when vehicle is in specific meters above ground at the Cautious land behaviour
+    // @Units: m
+    // @User: Advanced
+    AP_GROUPINFO("S_SRCH_ALT", 11, AC_PrecLand, _stop_search_alt, 1.0f),
+
+    // @Param: HVR_SRCH_T
+    // @DisplayName: Hover search time
+    // @Description: Hover search time when vehicle is in the search altitude above ground at the Cautious land behaviour
+    // @Units: s
+    // @User: Advanced
+    AP_GROUPINFO("HVR_SRCH_T", 12, AC_PrecLand, _hover_search_time, 5.0f),
+
+    // @Param: M_SRCH_ATT
+    // @DisplayName: Max search attemps
+    // @Description: Max search attemps to look for the landing beacon when vehicle is in the Cautious land behaviour
+    // @Range: 1 10
+    // @Increment: 1
+    // @User: Advanced
+    AP_GROUPINFO("M_SRCH_ATT", 13, AC_PrecLand, _max_search_attemps, 5),
+
     AP_GROUPEND
 };
 
@@ -165,16 +198,28 @@ void AC_PrecLand::init(uint16_t update_rate_hz)
         case PRECLAND_TYPE_IRLOCK:
             _backend = new AC_PrecLand_IRLock(*this, _backend_state);
             break;
+        // Marker
+        case PRECLAND_TYPE_MARKER:
+            _backend = new AC_PrecLand_Marker(*this, _backend_state);
+            break;
+        // Marker and IR Lock Fusion
+        case PRECLAND_TYPE_FUSION:
+            _backend = new AC_PrecLand_Fusion(*this, _backend_state);
+            break;
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
+        // IR Lock Gazebo SITL
         case PRECLAND_TYPE_SITL_GAZEBO:
             _backend = new AC_PrecLand_SITL_Gazebo(*this, _backend_state);
             break;
+        // IR Lock SITL
         case PRECLAND_TYPE_SITL:
             _backend = new AC_PrecLand_SITL(*this, _backend_state);
             break;
+        // Marker Gazebo SITL
         case PRECLAND_TYPE_SITL_GAZEBO_MARKER:
             _backend = new AC_PrecLand_SITL_Gazebo_Marker(*this, _backend_state);
             break;
+        // Marker and IR Lock Fusion Gazebo SITL
         case PRECLAND_TYPE_SITL_GAZEBO_FUSION:
             _backend = new AC_PrecLand_SITL_Gazebo_Fusion(*this, _backend_state);
 #endif
@@ -197,6 +242,7 @@ void AC_PrecLand::update(float rangefinder_alt_cm, bool rangefinder_alt_valid)
     // append current velocity and attitude correction into history buffer
     struct inertial_data_frame_s inertial_data_newest;
     const AP_AHRS_NavEKF &_ahrs = AP::ahrs_navekf();
+
     _ahrs.getCorrectedDeltaVelocityNED(inertial_data_newest.correctedVehicleDeltaVelocityNED, inertial_data_newest.dt);
     inertial_data_newest.Tbn = _ahrs.get_rotation_body_to_ned();
     Vector3f curr_vel;
@@ -221,7 +267,7 @@ void AC_PrecLand::update(float rangefinder_alt_cm, bool rangefinder_alt_valid)
 
 bool AC_PrecLand::target_acquired()
 {
-    _target_acquired = _target_acquired && (AP_HAL::millis()-_last_update_ms) < 2000;
+    _target_acquired = _target_acquired && (AP_HAL::millis()-_last_update_ms) < 500;
     return _target_acquired;
 }
 
@@ -239,10 +285,13 @@ bool AC_PrecLand::get_target_position_cm(Vector2f& ret)
     return true;
 }
 
-void AC_PrecLand::get_target_position_measurement_cm(Vector3f& ret)
+bool AC_PrecLand::get_target_position_measurement_cm(Vector3f& ret)
 {
+    if (is_zero(_target_pos_rel_meas_NED.z)) {
+        return false;
+    }
     ret = _target_pos_rel_meas_NED*100.0f;
-    return;
+    return true;
 }
 
 bool AC_PrecLand::get_target_position_relative_cm(Vector2f& ret)
@@ -263,12 +312,67 @@ bool AC_PrecLand::get_target_velocity_relative_cms(Vector2f& ret)
     return true;
 }
 
+bool AC_PrecLand::get_unit_los_body_cm(Vector3f& ret)
+{
+    // if (_backend->have_los_meas() && _last_backend_los_meas_ms_log != _last_backend_los_meas_ms) {
+    // _last_backend_los_meas_ms_log = _last_backend_los_meas_ms;
+    ret = _target_unit_pos;
+    ret = ret*100;
+    return true;
+    // }
+    // return false;
+}
+
+bool AC_PrecLand::get_unit_los_body_trans_cm(Vector3f& ret)
+{
+    // if (_backend->have_los_meas() && _last_backend_los_meas_ms_log != _last_backend_los_meas_ms) {
+    // _last_backend_los_meas_ms_log = _last_backend_los_meas_ms;
+    ret = _target_unit_pos_trans;
+    ret = ret*100;
+    return true;
+    // }
+    // return false;
+}
+
+bool AC_PrecLand::get_los_body_cm(Vector3f& ret)
+{
+    // if (_backend->have_los_meas() && _last_backend_los_meas_ms_log != _last_backend_los_meas_ms) {
+    // _last_backend_los_meas_ms_log = _last_backend_los_meas_ms;
+    _backend->get_los_body_log(ret);
+    ret = ret*100;
+    return true;
+    // }
+    // return false;
+}
+
+bool AC_PrecLand::get_distance_cm(float& ret)
+{
+    // if (_backend->have_los_meas() && _last_backend_los_meas_ms_log != _last_backend_los_meas_ms) {
+    // _last_backend_los_meas_ms_log = _last_backend_los_meas_ms;
+    ret = _distance*100;
+    return true;
+    // }
+    // return false;
+}
+
 // handle_msg - Process a LANDING_TARGET mavlink message
 void AC_PrecLand::handle_msg(const mavlink_message_t &msg)
-{
+{   
     // run backend update
     if (_backend != nullptr) {
-        _backend->handle_msg(msg);
+        switch (msg.msgid) {
+            case MAVLINK_MSG_ID_LANDING_TARGET:
+                _backend->handle_msg(msg);
+                break;
+
+            case MAVLINK_MSG_ID_VISUAL_MARKER_TARGET:
+                _backend->handle_msg(msg);
+                break;
+
+            case MAVLINK_MSG_ID_SET_FAULT_INJECTION:
+                _backend->handle_fault_injection_msg(msg);
+                break;
+        }
     }
 }
 
@@ -297,6 +401,7 @@ void AC_PrecLand::run_estimator(float rangefinder_alt_m, bool rangefinder_alt_va
                 _target_pos_rel_est_NE.y -= inertial_data_delayed->inertialNavVelocity.y * inertial_data_delayed->dt;
                 _target_vel_rel_est_NE.x = -inertial_data_delayed->inertialNavVelocity.x;
                 _target_vel_rel_est_NE.y = -inertial_data_delayed->inertialNavVelocity.y;
+                // printf("1u x:%f, ux:%f, y:%f, uy:%f\n", _target_pos_rel_est_NE.x, _target_vel_rel_est_NE.x, _target_pos_rel_est_NE.y, _target_vel_rel_est_NE.y);
             }
 
             // Update if a new Line-Of-Sight measurement is available
@@ -305,6 +410,8 @@ void AC_PrecLand::run_estimator(float rangefinder_alt_m, bool rangefinder_alt_va
                 _target_pos_rel_est_NE.y = _target_pos_rel_meas_NED.y;
                 _target_vel_rel_est_NE.x = -inertial_data_delayed->inertialNavVelocity.x;
                 _target_vel_rel_est_NE.y = -inertial_data_delayed->inertialNavVelocity.y;
+                // printf("2u x:%f, ux:%f, y:%f, uy:%f\n", _target_pos_rel_est_NE.x, _target_vel_rel_est_NE.x, _target_pos_rel_est_NE.y, _target_vel_rel_est_NE.y);
+
 
                 _last_update_ms = AP_HAL::millis();
                 _target_acquired = true;
@@ -395,43 +502,40 @@ bool AC_PrecLand::construct_pos_meas_using_rangefinder(float rangefinder_alt_m, 
 {
     Vector3f target_vec_unit_body;
     if (retrieve_los_meas(target_vec_unit_body)) {
-        // bool marker_land = (enum PrecLandType)_type.get() == PRECLAND_TYPE_SITL_GAZEBO_MARKER;
-        // float marker_alt = target_vec_unit_body.z;
-        // if (marker_land) {
-            // printf("B, x:%f, y:%f, z:%f\n", target_vec_unit_body.x, target_vec_unit_body.y, target_vec_unit_body.z);
-            // target_vec_unit_body /= target_vec_unit_body.length();
-            // printf("A, x:%f, y:%f, z:%f\n", target_vec_unit_body.x, target_vec_unit_body.y, target_vec_unit_body.z);
-        // }
         const struct inertial_data_frame_s *inertial_data_delayed = (*_inertial_history)[0];
         //printf("0 x:%f, y:%f, z:%f\n", target_vec_unit_body.x, target_vec_unit_body.y, target_vec_unit_body.z);
+        _target_unit_pos = target_vec_unit_body;
         Vector3f target_vec_unit_ned = inertial_data_delayed->Tbn * target_vec_unit_body;
+        _target_unit_pos_trans = target_vec_unit_ned;
         //printf("1 x:%f, y:%f, z:%f\n", target_vec_unit_ned.x, target_vec_unit_ned.y, target_vec_unit_ned.z);
 
-        bool target_vec_valid = target_vec_unit_ned.z > 0.0f;
-        bool alt_valid = (rangefinder_alt_valid && rangefinder_alt_m > 0.0f) || (_backend->distance_to_target() > 0.0f);
-        // printf("2 alt_valid:%d, rangefinder_alt_valid:%d, rangefinder_alt_m:%f\n", alt_valid, rangefinder_alt_valid, rangefinder_alt_m);
-        if ((target_vec_valid && alt_valid)/* || marker_land*/) {
+        bool target_vec_valid = is_positive(target_vec_unit_ned.z);
+        float baro_alt = AP::baro().get_altitude();
+        // bool alt_valid = (rangefinder_alt_valid && rangefinder_alt_m > 0.0f) || (_backend->distance_to_target() > 0.0f);
+        // printf("PRECLAND: distance_to_target: %lf, cur_loc.alt: %lf, baro: %lf\n", _backend->distance_to_target(), rangefinder_alt_m, baro_alt);
+        bool alt_valid = is_positive(baro_alt) || is_positive(_backend->distance_to_target());
+        // printf("2 hal_time: %u, alt_valid:%d, rangefinder_alt_valid:%d, rangefinder_alt_m:%f\n", AP_HAL::millis(), alt_valid, rangefinder_alt_valid, rangefinder_alt_m);
+        if ((target_vec_valid && alt_valid)) {
             float dist, alt;
-            // if (marker_land) {
-            //     alt = MAX(marker_alt, 0.0f);
-            //     dist = alt / target_vec_unit_ned.z;
-            //     // //printf("3 alt:%f, dist:%f\n", alt, dist);
-            /*} else */if (_backend->distance_to_target() > 0.0f && _backend->which_sensor() < 2) {
+            if (is_positive(_backend->distance_to_target()) && _backend->which_sensor() < 2) {
                 dist = _backend->distance_to_target();
                 alt = dist * target_vec_unit_ned.z;
-                printf("4 alt:%f, dist:%f\n", alt, dist);
+                // printf("4 alt:%f, dist:%f\n", alt, dist);
             } else {
-                alt = MAX(rangefinder_alt_m, 0.0f);
+                // alt = MAX(rangefinder_alt_m, 0.0f);
+                alt = MAX(baro_alt, 0.0f);
                 dist = alt / target_vec_unit_ned.z;
-                printf("5 alt:%f, dist:%f\n", alt, dist);
+                // printf("5 alt:%f, dist:%f\n", alt, dist);
             }
+            _distance = dist;
 
             // Compute camera position relative to IMU
             Vector3f accel_body_offset = AP::ins().get_imu_pos_offset(AP::ahrs().get_primary_accel_index());
             Vector3f cam_pos_ned = inertial_data_delayed->Tbn * (_cam_offset.get() - accel_body_offset);
             // Compute target position relative to IMU
             _target_pos_rel_meas_NED = Vector3f(target_vec_unit_ned.x*dist, target_vec_unit_ned.y*dist, alt) + cam_pos_ned;
-            printf("6 x:%f, y:%f, z:%f\n", _target_pos_rel_meas_NED.x, _target_pos_rel_meas_NED.y, _target_pos_rel_meas_NED.z);
+            // printf("6a x:%f, y:%f, z:%f\n", target_vec_unit_ned.x*dist, target_vec_unit_ned.y*dist, alt);
+            // printf("6b x:%f, y:%f, z:%f\n", _target_pos_rel_meas_NED.x, _target_pos_rel_meas_NED.y, _target_pos_rel_meas_NED.z);
             return true;
         }
     }
@@ -442,6 +546,8 @@ void AC_PrecLand::run_output_prediction()
 {
     _target_pos_rel_out_NE = _target_pos_rel_est_NE;
     _target_vel_rel_out_NE = _target_vel_rel_est_NE;
+    // printf("3u x:%f, ux:%f, y:%f, uy:%f\n", _target_pos_rel_est_NE.x, _target_vel_rel_est_NE.x, _target_pos_rel_est_NE.y, _target_vel_rel_est_NE.y);
+
 
     // Predict forward from delayed time horizon
     for (uint8_t i=1; i<_inertial_history->available(); i++) {
@@ -450,6 +556,8 @@ void AC_PrecLand::run_output_prediction()
         _target_vel_rel_out_NE.y -= inertial_data->correctedVehicleDeltaVelocityNED.y;
         _target_pos_rel_out_NE.x += _target_vel_rel_out_NE.x * inertial_data->dt;
         _target_pos_rel_out_NE.y += _target_vel_rel_out_NE.y * inertial_data->dt;
+        // printf("Corrected_%d cor_x:%f, cor_y:%f\n", i, inertial_data->correctedVehicleDeltaVelocityNED.x, inertial_data->correctedVehicleDeltaVelocityNED.y);
+        // printf("4u_%d x:%f, ux:%f, y:%f, uy:%f\n", i, _target_pos_rel_out_NE.x, _target_vel_rel_out_NE.x, _target_pos_rel_out_NE.y, _target_vel_rel_out_NE.y);
     }
     // printf("7 x:%f, y:%f\n", _target_pos_rel_out_NE.x, _target_pos_rel_out_NE.y);
     const AP_AHRS &_ahrs = AP::ahrs();

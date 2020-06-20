@@ -550,7 +550,6 @@ void Mode::land_run_vertical_control(bool pause_descent)
 
         // Compute a vertical velocity demand such that the vehicle approaches g2.land_alt_low. Without the below constraint, this would cause the vehicle to hover at g2.land_alt_low.
         cmb_rate = AC_AttitudeControl::sqrt_controller(MAX(g2.land_alt_low,100)-get_alt_above_ground_cm(), pos_control->get_pos_z_p().kP(), pos_control->get_max_accel_z(), G_Dt);
-
         // Constrain the demanded vertical velocity so that it is between the configured maximum descent speed and the configured minimum descent speed.
         cmb_rate = constrain_float(cmb_rate, max_land_descent_velocity, -abs(g.land_speed));
 
@@ -558,21 +557,101 @@ void Mode::land_run_vertical_control(bool pause_descent)
         const bool navigating = pos_control->is_active_xy();
         bool doing_precision_landing = !copter.ap.land_repo_active && copter.precland.target_acquired() && navigating;
 
-        if (doing_precision_landing && copter.rangefinder_alt_ok() && copter.rangefinder_state.alt_cm > 35.0f && copter.rangefinder_state.alt_cm < 200.0f) {
-            // compute desired velocity
-            const float precland_acceptable_error = 15.0f;
-            const float precland_min_descent_speed = 10.0f;
+        // if (doing_precision_landing && copter.rangefinder_alt_ok() && copter.rangefinder_state.alt_cm > 35.0f && copter.rangefinder_state.alt_cm < 200.0f) {
+        if (doing_precision_landing) {
+            if (get_alt_above_ground_cm() > 35.0f && get_alt_above_ground_cm() < 300.0f) {
+                // compute desired velocity
+                const float precland_acceptable_error = 15.0f;
+                const float precland_min_descent_speed = 10.0f;
 
-            float max_descent_speed = abs(g.land_speed)*0.5f;
-            float land_slowdown = MAX(0.0f, pos_control->get_horizontal_error()*(max_descent_speed/precland_acceptable_error));
-            cmb_rate = MIN(-precland_min_descent_speed, -max_descent_speed+land_slowdown);
+                float max_descent_speed = abs(g.land_speed)*0.5f;
+                float land_slowdown = MAX(0.0f, pos_control->get_horizontal_error()*(max_descent_speed/precland_acceptable_error));
+                cmb_rate = MIN(-precland_min_descent_speed, -max_descent_speed+land_slowdown);
+            }
+            start_hover = false;
+            stop_looking = false;
+            copter.precland.get_target_position_measurement_cm(last_meas);
         }
-#endif
+        // else if (!always_land && !stop_looking && !doing_precision_landing && get_alt_above_ground_cm() > 50.0f) {
+        else if (!always_land && !stop_looking && !doing_precision_landing && get_alt_above_ground_cm() > (copter.precland._stop_search_alt*100)) {
+            if (looking_tries > max_search_attemps || (looking_tries == max_search_attemps && is_zero(set_alt))) {
+                search_beacon = false;
+                always_land = true;
+                prev_psc_cmd = true;
+
+            }
+            else {
+                search_beacon = true;
+                if (is_zero(set_alt)) {
+                    looking_tries++;
+                    if (!is_zero(last_meas.z)) {
+                        copter.precland.get_target_position_measurement_cm(last_meas);
+                        set_alt = last_meas.z;
+                    }
+                    else {
+                        set_alt = copter.precland._search_alt*100;
+                        last_meas.z = 0;
+                    }
+                    // start the timer here
+                    _last_update_beacon_ms = AP_HAL::millis64();
+                }
+            }
+        }
+        else if (!(get_alt_above_ground_cm() > (copter.precland._stop_search_alt*100))) {
+            always_land = true;
+        }
+#endif  
     }
 
+#if PRECISION_LANDING == ENABLED
+    // update altitude target and call position controller
+    if (search_beacon) {
+        // start the timer to measure the seconds have past to decide if we hover
+        if (fabs(set_alt - get_alt_above_ground_cm()) > 20.0f && start_hover == false) { // cm
+            _last_update_beacon_ms = AP_HAL::millis64();
+        }
+        else {
+            start_hover = true;
+            // check time since last cast
+            if (AP_HAL::millis64() - _last_update_beacon_ms > (copter.precland._hover_search_time*1000)) {
+                start_hover = false;
+                if ((is_equal(set_alt, last_meas.z) && (fabs(last_meas.z - (copter.precland._search_alt*100)) > 100.0f)) && (looking_tries < max_search_attemps)) {
+                    set_alt = copter.precland._search_alt*100;
+                    looking_tries++;
+                }
+                else {
+                    stop_looking = true;
+                }
+                last_meas.z = 0;
+            }
+        }
+
+        search_beacon = false;
+        prev_psc_cmd = true;
+        pos_control->set_alt_target_with_slew(set_alt, G_Dt);
+        pos_control->update_z_controller();
+        return;
+    }
+    
+    set_alt = 0;
+    if (prev_psc_cmd) {
+        pos_control->set_alt_target_from_climb_rate(cmb_rate, G_Dt, true);
+        set_alt_no_ff = true;
+    }
+    else {
+        if (set_alt_no_ff) {
+            pos_control->set_desired_velocity_z(0.0f);
+            set_alt_no_ff = false;
+        }
+        pos_control->set_alt_target_from_climb_rate_ff(cmb_rate, G_Dt, true);
+    }
+    pos_control->update_z_controller();
+    prev_psc_cmd = false;
+#else
     // update altitude target and call position controller
     pos_control->set_alt_target_from_climb_rate_ff(cmb_rate, G_Dt, true);
     pos_control->update_z_controller();
+#endif
 }
 
 void Mode::land_run_horizontal_control()

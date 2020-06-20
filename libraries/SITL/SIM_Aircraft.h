@@ -184,6 +184,7 @@ protected:
     Vector3f mag_bf;  // local earth magnetic field vector in Gauss, earth frame
 
     uint64_t time_now_us;
+    double time_now_us_gaz;
 
     const float gyro_noise;
     const float accel_noise;

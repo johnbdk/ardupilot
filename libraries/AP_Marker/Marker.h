@@ -1,5 +1,6 @@
 #pragma once
 
+#include <GCS_MAVLink/GCS_MAVLink.h>
 #include <AP_Math/AP_Math.h>
 #include <unistd.h>
 #include <iostream>
@@ -26,6 +27,8 @@ public:
 	// retrieve body frame unit vector in direction of target
 	// returns true if data is available
 	bool get_unit_vector_body(Vector3f& ret) const;
+
+	bool get_vector_body(Vector3f& ret) const;
 
 	bool get_distance_to_target(float& dist) const;
 

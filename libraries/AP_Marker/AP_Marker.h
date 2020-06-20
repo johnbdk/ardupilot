@@ -1,5 +1,5 @@
 #include "Marker.h"
-#include "AP_Marker_I2C.h"
+#include "AP_Marker_MAVLink.h"
 
 #if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include "AP_Marker_SITL_Gazebo.h"

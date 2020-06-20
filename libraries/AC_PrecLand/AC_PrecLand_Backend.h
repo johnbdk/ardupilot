@@ -25,6 +25,8 @@ public:
     //  returns same as have_los_meas()
     virtual bool get_los_body(Vector3f& dir_body) = 0;
 
+    virtual bool get_los_body_log(Vector3f& dir_body) { return 0; }
+
     // returns system time in milliseconds of last los measurement
     virtual uint32_t los_meas_time_ms() = 0;
 
@@ -36,6 +38,9 @@ public:
 
     // parses a mavlink message from the companion computer
     virtual void handle_msg(const mavlink_message_t &msg) {};
+
+    // parses a mavlink fault injection message from the companion computer
+    virtual void handle_fault_injection_msg(const mavlink_message_t &msg) {};
 
     virtual int8_t which_sensor() { return 0; };
 
