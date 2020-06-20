@@ -37,6 +37,11 @@ public:
 	// returns distance to target in meters (0 means distance is not known)
     float distance_to_target() override;
 
+    // parses a mavlink fault injection message from the companion computer
+    void handle_fault_injection_msg(const mavlink_message_t &msg) override;
+    
+    void print_sensor_state(uint32_t last_update_ms);
+
 private:
 	AP_Marker_SITL_Gazebo marker;
 
@@ -44,6 +49,9 @@ private:
 	Vector3f			_los_meas_body;			// unit vector in body frame pointing towards target
 	bool				_have_los_meas;			// true if there is a valid measurement from the camera
 	uint32_t			_los_meas_time_ms;		// system time in milliseconds when los was measured
+
+	float fi_rate_marker, fi_rate_marker_rem, fi_error_marker;
+    bool took_fi_marker, apply_error_marker;
 };
 
 #endif

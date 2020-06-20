@@ -92,11 +92,14 @@ void Gazebo::recv_fdm(const struct sitl_input &input)
         }
     }
 
-    const double deltat = pkt.timestamp - last_timestamp;  // in seconds
-    if (deltat < 0) {  // don't use old packet
-        time_now_us += 1;
-        return;
+    const uint64_t deltat = pkt.timestamp - last_timestamp;  // in seconds
+    if (static_cast<int>(deltat) < 0) {  // don't use old packet
+      time_now_us += 1;
+      // time_now_us_gaz += 1;
+      return;
     }
+    // printf("pkt.timestamp:%lu, last_timestamp:%lu\n", pkt.timestamp, last_timestamp);
+    // printf("deltat:%lu\n", deltat);
     // get imu stuff
     accel_body = Vector3f(static_cast<float>(pkt.imu_linear_acceleration_xyz[0]),
                           static_cast<float>(pkt.imu_linear_acceleration_xyz[1]),
@@ -123,10 +126,16 @@ void Gazebo::recv_fdm(const struct sitl_input &input)
 
 
     // auto-adjust to simulation frame rate
-    time_now_us += static_cast<uint64_t>(deltat * 1.0e6);
+    // printf("B:time_now_us:%lu\n", time_now_us);
+    // time_now_us += static_cast<uint64_t>(deltat * 1.0e6);
+    // time_now_us_gaz += (deltat * 1.0e6);
+    // time_now_us += static_cast<uint64_t>(deltat * 1.0e6);
+    time_now_us += deltat;
+    // printf("A:time_now_us:%lu\n", time_now_us);
 
-    if (deltat < 0.01 && deltat > 0) {
-        adjust_frame_time(static_cast<float>(1.0/deltat));
+    // 0.01 * 1.0e6 from secs to usecs
+    if (deltat < (0.01 * 1.0e6)  && static_cast<int>(deltat) > 0) {
+        adjust_frame_time(static_cast<float>((1.0*1.0e6)/deltat));
     }
     last_timestamp = pkt.timestamp;
 

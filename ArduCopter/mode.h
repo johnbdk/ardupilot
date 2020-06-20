@@ -251,6 +251,20 @@ public:
     uint16_t get_pilot_speed_dn(void);
 
     // end pass-through functions
+    // edit here
+#if PRECISION_LANDING == ENABLED
+    bool search_beacon;
+    bool prev_psc_cmd;
+    bool set_alt_no_ff;
+    bool stop_looking;
+    bool always_land;
+    bool start_hover;
+    float set_alt;
+    int32_t looking_tries;
+    int32_t max_search_attemps;
+    Vector3f last_meas;
+    uint64_t _last_update_beacon_ms;
+#endif
 };
 
 

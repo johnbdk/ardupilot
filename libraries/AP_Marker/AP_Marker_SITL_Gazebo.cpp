@@ -7,6 +7,8 @@
 #include <unistd.h>
 
 #include <iostream>
+#include <AP_Logger/AP_Logger.h>
+
 
 extern const AP_HAL::HAL& hal;
 
@@ -27,7 +29,7 @@ void AP_Marker_SITL_Gazebo::init(int8_t bus)
 	sock.set_blocking(false);
 
 	hal.console->printf("AP_Marker_SITL_Gazebo::init()\n");
-	printf("AP_Marker_SITL_Gazebo::init()\n");
+	// printf("AP_Marker_SITL_Gazebo::init()\n");
 	_flags.healthy = true;
 }
 
@@ -51,16 +53,14 @@ bool AP_Marker_SITL_Gazebo::update()
 		float pos_y;
 		float pos_z;
 		float distance;
-		float size_x;
-		float size_y;
 	} pkt;
 	const int wait_ms = 0;
 	ssize_t s = sock.recv(&pkt, sizeof(marker_packet), wait_ms);
 
 	bool new_data = false;
 
-	// printf("size: %lu, pkt.time %u, last_time %u\n", sizeof(marker_packet), pkt.timestamp, _last_timestamp);
 	if (s == sizeof(marker_packet) && pkt.timestamp > _last_timestamp) {
+		// printf("M: pkt.time %u, last_time %u\n", pkt.timestamp, _last_timestamp);
 		// fprintf(stderr, "posx %f posy %f posz %f sizex %f sizey %f\n", pkt.pos_x, pkt.pos_y, pkt.pos_z, pkt.size_x, pkt.size_y);
 		_target_info.timestamp = pkt.timestamp;
 		_target_info.pos_x = pkt.pos_x;

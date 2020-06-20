@@ -4,6 +4,7 @@
 #include <AP_Math/AP_Math.h>
 #include <AC_PrecLand/AC_PrecLand_Backend.h>
 #include <AP_IRLock/AP_IRLock_SITL_Gazebo.h>
+#include <iostream>
 
 /*
  * AC_PrecLand_SITL_Gazebo - implements precision landing using target
@@ -33,12 +34,20 @@ public:
     // return true if there is a valid los measurement available
     bool have_los_meas() override;
 
+    // parses a mavlink fault injection message from the companion computer
+    void handle_fault_injection_msg(const mavlink_message_t &msg) override;
+
+    void print_sensor_state(uint32_t last_update_ms);
+
 private:
     AP_IRLock_SITL_Gazebo irlock;
 
     Vector3f            _los_meas_body;         // unit vector in body frame pointing towards target
     bool                _have_los_meas;         // true if there is a valid measurement from the camera
     uint32_t            _los_meas_time_ms;      // system time in milliseconds when los was measured
+
+    float fi_rate_irlock, fi_rate_irlock_rem, fi_error_irlock;
+    bool took_fi_irlock, apply_error_irlock;
 };
 
 #endif

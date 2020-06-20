@@ -1219,6 +1219,23 @@ struct PACKED log_Arm_Disarm {
     uint8_t method;
 };
 
+struct PACKED log_irlock {
+    LOG_PACKET_HEADER
+    uint64_t time_us;
+    float posx;
+    float posy;
+    float posz;
+};
+
+struct PACKED log_marker {
+    LOG_PACKET_HEADER
+    uint64_t time_us;
+    float posx;
+    float posy;
+    float posz;
+    float dist;
+};
+
 // FMT messages define all message formats other than FMT
 // UNIT messages define units which can be referenced by FMTU messages
 // FMTU messages associate types (e.g. centimeters/second/second) to FMT message fields
@@ -2526,7 +2543,11 @@ struct PACKED log_Arm_Disarm {
     { LOG_ARM_DISARM_MSG, sizeof(log_Arm_Disarm), \
       "ARM", "QBIBB", "TimeUS,ArmState,ArmChecks,Forced,Method", "s----", "F----" }, \
     { LOG_ERROR_MSG, sizeof(log_Error), \
-      "ERR",   "QBB",         "TimeUS,Subsys,ECode", "s--", "F--" }
+      "ERR",   "QBB",         "TimeUS,Subsys,ECode", "s--", "F--" }, \
+    { LOG_IRLOCK_MSG, sizeof(log_irlock), \
+      "IRL",    "Qfff", "TimeUS,posx,posy,posz", "smmm", "FBBB" }, \
+    { LOG_MARKER_MSG, sizeof(log_marker), \
+      "MRK",    "Qffff", "TimeUS,posx,posy,posz,dist", "smmmm", "FBBBB" }  
 
 
 // @LoggerMessage: SBPH
@@ -2685,7 +2706,8 @@ enum LogMessages : uint8_t {
     LOG_OA_BENDYRULER_MSG,
     LOG_OA_DIJKSTRA_MSG,
     LOG_VISUALVEL_MSG,
-
+    LOG_IRLOCK_MSG,
+    LOG_MARKER_MSG,
     _LOG_LAST_MSG_
 };
 

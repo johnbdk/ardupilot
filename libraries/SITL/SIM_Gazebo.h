@@ -54,7 +54,8 @@ private:
       reply packet sent from Gazebo to ArduPilot
      */
     struct fdm_packet {
-      double timestamp;  // in seconds
+      // double timestamp;  // in seconds
+      uint64_t timestamp;  // in seconds
       double imu_angular_velocity_rpy[3];
       double imu_linear_acceleration_xyz[3];
       double imu_orientation_quat[4];
@@ -66,7 +67,8 @@ private:
     void send_servos(const struct sitl_input &input);
     void drain_sockets();
 
-    double last_timestamp;
+    // double last_timestamp;
+    uint64_t last_timestamp;
 
     SocketAPM socket_sitl;
     const char *_gazebo_address = "127.0.0.1";

@@ -446,6 +446,7 @@ void Copter::twentyfive_hz_logging()
 #if PRECISION_LANDING == ENABLED
     // log output
     Log_Write_Precland();
+    Log_Write_Precland_Backends();
 #endif
 
 #if MODE_AUTOROTATE_ENABLED == ENABLED

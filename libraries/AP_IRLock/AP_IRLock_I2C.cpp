@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <utility>
 #include <AP_HAL/I2CDevice.h>
+#include <AP_Logger/AP_Logger.h>
 
 extern const AP_HAL::HAL& hal;
 
@@ -138,6 +139,8 @@ void AP_IRLock_I2C::read_frames(void)
         _target_info.pos_x = 0.5f*(corner1_pos_x+corner2_pos_x);
         _target_info.pos_y = 0.5f*(corner1_pos_y+corner2_pos_y);
         _target_info.pos_z = 1.0f;
+        log_irlock();
+        // AP::logger().Write("IRLK", "TimeUS,OfsX,OfsY,OfsZ,Dist", "Ifff", AP_HAL::millis(), (double)_target_info.pos_x, (double)_target_info.pos_y, (double)_target_info.pos_z);
     }
 
 #if 0
@@ -169,4 +172,16 @@ bool AP_IRLock_I2C::update()
 
     // return true if new data found
     return new_data;
+}
+
+void AP_IRLock_I2C::log_irlock()
+{
+    struct log_irlock pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_IRLOCK_MSG),
+        time_us : _target_info.timestamp,
+        posx    : -_target_info.pos_y*100,
+        posy    : _target_info.pos_x*100,
+        posz    : _target_info.pos_z*100
+    };
+    AP::logger().WriteBlock(&pkt, sizeof(pkt));
 }

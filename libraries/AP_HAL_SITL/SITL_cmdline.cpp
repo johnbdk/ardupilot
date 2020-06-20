@@ -491,7 +491,6 @@ bool SITL_State::parse_home(const char *home_str, Location &loc, float &yaw_degr
         ::printf("Failed to parse yaw\n");
         return false;
     }
-
     loc = {};
     loc.lat = static_cast<int32_t>(strtod(lat_s, nullptr) * 1.0e7);
     loc.lng = static_cast<int32_t>(strtod(lon_s, nullptr) * 1.0e7);

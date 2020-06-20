@@ -49,6 +49,7 @@ Aircraft::Aircraft(const char *frame_str) :
     mass(0.0f),
     accel_body(0.0f, 0.0f, -GRAVITY_MSS),
     time_now_us(0),
+    // time_now_us_gaz(0),
     gyro_noise(radians(0.1f)),
     accel_noise(0.3f),
     rate_hz(1200.0f),
@@ -218,9 +219,12 @@ void Aircraft::time_advance()
     // we only advance time if it hasn't been advanced already by the
     // backend
     if (last_time_us == time_now_us) {
+    // if (last_time_us == static_cast<uint64_t>(time_now_us_gaz)) {
         time_now_us += frame_time_us;
+        // time_now_us_gaz += static_cast<double>(frame_time_us);
     }
     last_time_us = time_now_us;
+    // last_time_us = static_cast<uint64_t>(time_now_us_gaz);
     if (use_time_sync) {
         sync_frame_time();
     }
@@ -337,6 +341,7 @@ void Aircraft::fill_fdm(struct sitl_fdm &fdm)
         is_smoothed = true;
     }
     fdm.timestamp_us = time_now_us;
+    // fdm.timestamp_us = static_cast<uint64_t>(time_now_us_gaz);
     if (fdm.home.lat == 0 && fdm.home.lng == 0) {
         // initialise home
         fdm.home = home;
@@ -633,6 +638,7 @@ void Aircraft::update_wind(const struct sitl_input &input)
 void Aircraft::smooth_sensors(void)
 {
     uint64_t now = time_now_us;
+    // uint64_t now = static_cast<uint64_t>(time_now_us_gaz);
     Vector3f delta_pos = position - smoothing.position;
     if (smoothing.last_update_us == 0 || delta_pos.length() > 10) {
         smoothing.position = position;

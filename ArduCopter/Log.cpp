@@ -375,9 +375,10 @@ struct PACKED log_Precland {
     float meas_x;
     float meas_y;
     float meas_z;
+    float unit_x;
+    float unit_y;
+    float unit_z;
     uint32_t last_meas;
-    uint32_t ekf_outcount;
-    uint8_t estimator;
 };
 
 // Write a precision landing entry
@@ -392,9 +393,11 @@ void Copter::Log_Write_Precland()
     Vector3f target_pos_meas = Vector3f(0.0f,0.0f,0.0f);
     Vector2f target_pos_rel = Vector2f(0.0f,0.0f);
     Vector2f target_vel_rel = Vector2f(0.0f,0.0f);
+    Vector3f unit_los_body = Vector3f(0.0f,0.0f,0.0f);
     precland.get_target_position_relative_cm(target_pos_rel);
     precland.get_target_velocity_relative_cms(target_vel_rel);
     precland.get_target_position_measurement_cm(target_pos_meas);
+    precland.get_unit_los_body_cm(unit_los_body);
 
     struct log_Precland pkt = {
         LOG_PACKET_HEADER_INIT(LOG_PRECLAND_MSG),
@@ -408,9 +411,63 @@ void Copter::Log_Write_Precland()
         meas_x          : target_pos_meas.x,
         meas_y          : target_pos_meas.y,
         meas_z          : target_pos_meas.z,
-        last_meas       : precland.last_backend_los_meas_ms(),
-        ekf_outcount    : precland.ekf_outlier_count(),
-        estimator       : precland.estimator_type()
+        unit_x          : unit_los_body.x,
+        unit_y          : unit_los_body.y,
+        unit_z          : unit_los_body.z,
+        last_meas       : precland.last_backend_los_meas_ms()
+    };
+    logger.WriteBlock(&pkt, sizeof(pkt));
+ #endif     // PRECISION_LANDING == ENABLED
+}
+
+// precision landing backends logging
+struct PACKED log_Precland_Backends {
+    LOG_PACKET_HEADER;
+    uint64_t time_us;
+    float u_pos_x;
+    float u_pos_y;
+    float u_pos_z;
+    float u_pos_tr_x;
+    float u_pos_tr_y;
+    float u_pos_tr_z;
+    float pos_x;
+    float pos_y;
+    float pos_z;
+    float dist;
+};
+
+// Write a precision landing entry
+void Copter::Log_Write_Precland_Backends()
+{
+ #if PRECISION_LANDING == ENABLED
+    // exit immediately if not enabled
+    if (!precland.enabled()) {
+        return;
+    }
+
+    float distance;
+    Vector3f u_los_body = Vector3f(0.0f,0.0f,0.0f);
+    Vector3f u_los_body_trans = Vector3f(0.0f,0.0f,0.0f);
+    Vector3f los_body = Vector3f(0.0f,0.0f,0.0f);
+
+    precland.get_distance_cm(distance);
+    precland.get_unit_los_body_cm(u_los_body);
+    precland.get_los_body_cm(los_body);
+    precland.get_unit_los_body_trans_cm(u_los_body_trans);
+
+    struct log_Precland_Backends pkt = {
+        LOG_PACKET_HEADER_INIT(LOG_PRECLAND_BACKENDS_MSG),
+        time_us         : AP_HAL::micros64(),
+        u_pos_x         : u_los_body.x,
+        u_pos_y         : u_los_body.y,
+        u_pos_z         : u_los_body.z,
+        u_pos_tr_x      : u_los_body_trans.x,
+        u_pos_tr_y      : u_los_body_trans.y,
+        u_pos_tr_z      : u_los_body_trans.z,
+        pos_x           : los_body.x,
+        pos_y           : los_body.y,
+        pos_z           : los_body.z,
+        dist            : distance
     };
     logger.WriteBlock(&pkt, sizeof(pkt));
  #endif     // PRECISION_LANDING == ENABLED
@@ -559,7 +616,9 @@ const struct LogStructure Copter::log_structure[] = {
 // @Field: Est: Type of estimator used
 #if PRECISION_LANDING == ENABLED
     { LOG_PRECLAND_MSG, sizeof(log_Precland),
-      "PL",    "QBBfffffffIIB",    "TimeUS,Heal,TAcq,pX,pY,vX,vY,mX,mY,mZ,LastMeasUS,EKFOutl,Est", "s--ddmmddms--","F--00BB00BC--" },
+      "PL",    "QBBffffffffffI",    "TimeUS,Heal,TAcq,pX,pY,vX,vY,mX,mY,mZ,uX,uY,uZ,LastMeasUS", "s--ddmmddmmmms","F--00BB00BBBBC" },
+    { LOG_PRECLAND_BACKENDS_MSG, sizeof(log_Precland_Backends),
+      "PLB",    "Qffffffffff",    "TimeUS,uXb,uYb,uZb,uXTb,uYTb,uZTb,pXb,pYb,pZb,distb", "smmmmmmmmmm","FBBBBBBBBBB" },
 #endif
 
 // @LoggerMessage: SIDD
@@ -637,6 +696,7 @@ void Copter::Log_Write_Data(LogDataID id, float value) {}
 void Copter::Log_Write_Parameter_Tuning(uint8_t param, float tuning_val, float tune_min, float tune_max) {}
 void Copter::Log_Sensor_Health() {}
 void Copter::Log_Write_Precland() {}
+void Copter::Log_Write_Precland_Backends() {}
 void Copter::Log_Write_GuidedTarget(uint8_t target_type, const Vector3f& pos_target, const Vector3f& vel_target) {}
 void Copter::Log_Write_SysID_Setup(uint8_t systemID_axis, float waveform_magnitude, float frequency_start, float frequency_stop, float time_fade_in, float time_const_freq, float time_record, float time_fade_out) {}
 void Copter::Log_Write_SysID_Data(float waveform_time, float waveform_sample, float waveform_freq, float angle_x, float angle_y, float angle_z, float accel_x, float accel_y, float accel_z) {}

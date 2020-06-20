@@ -40,6 +40,29 @@ bool ModeLand::init(bool ignore_checks)
     // optionally deploy landing gear
     copter.landinggear.deploy_for_landing();
 
+#if PRECISION_LANDING == ENABLED
+    if (copter.precland.get_behaviour() == AC_PrecLand::PRECLAND_BEHAVIOR_CAUTIOUS) {
+        // printf("Precland Behavious is %d\n", AC_PrecLand::PRECLAND_BEHAVIOR_CAUTIOUS);
+        always_land = false;
+    }
+    else {
+        always_land = true;   
+    }
+
+    search_beacon = false;
+    prev_psc_cmd  = false;
+    set_alt_no_ff = false;
+    stop_looking  = false;
+    start_hover   = false;
+    set_alt     = 0;
+    last_meas.x = 0;
+    last_meas.y = 0;
+    last_meas.z = 0;
+    looking_tries = 0;
+    max_search_attemps = constrain_int32(copter.precland._max_search_attemps, 1, 10);
+    _last_update_beacon_ms = 0;
+#endif
+
     return true;
 }
 
@@ -74,7 +97,7 @@ void ModeLand::gps_run()
         motors->set_desired_spool_state(AP_Motors::DesiredSpoolState::THROTTLE_UNLIMITED);
 
         // pause before beginning land descent
-        if(land_pause && millis()-land_start_time >= LAND_WITH_DELAY_MS) {
+        if (land_pause && millis()-land_start_time >= LAND_WITH_DELAY_MS) {
             land_pause = false;
         }
 

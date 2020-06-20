@@ -1184,6 +1184,15 @@ void GCS_MAVLINK_Copter::handleMessage(const mavlink_message_t &msg)
     case MAVLINK_MSG_ID_LANDING_TARGET:
         copter.precland.handle_msg(msg);
         break;
+
+    case MAVLINK_MSG_ID_VISUAL_MARKER_TARGET:
+        copter.precland.handle_msg(msg);
+        break;
+
+    case MAVLINK_MSG_ID_SET_FAULT_INJECTION:
+        copter.precland.handle_msg(msg);
+        break;
+
 #endif
 
     case MAVLINK_MSG_ID_TERRAIN_DATA:

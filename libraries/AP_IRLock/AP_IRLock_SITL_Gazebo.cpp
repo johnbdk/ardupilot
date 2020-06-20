@@ -79,6 +79,7 @@ bool AP_IRLock_SITL_Gazebo::update()
     bool new_data = false;
 
     if (s == sizeof(irlock_packet) && pkt.timestamp > _last_timestamp) {
+        // printf("I: pkt.time %u, last_time %u\n", pkt.timestamp, _last_timestamp);
         // printf("1:posx %f posy %f, time %lu\n", pkt.pos_x, pkt.pos_y, pkt.timestamp);
         _target_info.timestamp = pkt.timestamp;
         // _target_info.pos_x = tanf(pkt.pos_x);
