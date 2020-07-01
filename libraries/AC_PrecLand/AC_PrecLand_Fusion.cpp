@@ -215,7 +215,7 @@ void AC_PrecLand_Fusion::marker_update()
 		if (apply_error_marker == true) {
 			_los_meas_body_marker.x += _los_meas_body_marker.x*(fi_error_marker/100.0f);
 			_los_meas_body_marker.y += _los_meas_body_marker.y*(fi_error_marker/100.0f);
-			_los_meas_body_marker.z += _los_meas_body_marker.z*(fi_error_marker/100.0f);
+			// _los_meas_body_marker.z += _los_meas_body_marker.z*(fi_error_marker/100.0f);
 		}
 		_have_los_meas_marker = true;
 	}

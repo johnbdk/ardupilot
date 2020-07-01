@@ -29,7 +29,7 @@ const AP_Param::GroupInfo AC_PrecLand::var_info[] = {
     // @Param: TYPE
     // @DisplayName: Precision Land Type
     // @Description: Precision Land Type
-    // @Values: 0:None, 1:CompanionComputer, 2:IRLock, 3:SITL_Gazebo, 4:SITL, 5:SITL_Gazebo_Marker, 6:SITL_Gazebo_Fusion
+    // @Values: 0:None, 1:CompanionComputer, 2:IRLock, 3:SITL_Gazebo, 4:SITL, 5:Marker, 6:Fusion, 7:SITL_Gazebo_Marker, 8:SITL_Gazebo_Fusion
     // @User: Advanced
     AP_GROUPINFO("TYPE",    1, AC_PrecLand, _type, 0),
 

@@ -111,7 +111,7 @@ void AC_PrecLand_Marker::update()
         if (apply_error_marker == true) {
             _los_meas_body.x += _los_meas_body.x*(fi_error_marker/100.0f);
             _los_meas_body.y += _los_meas_body.y*(fi_error_marker/100.0f);
-            _los_meas_body.z += _los_meas_body.z*(fi_error_marker/100.0f);
+            // _los_meas_body.z += _los_meas_body.z*(fi_error_marker/100.0f);
         }
         _have_los_meas = true;
         _los_meas_time_ms = marker.last_update_ms();

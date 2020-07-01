@@ -586,7 +586,13 @@ void Mode::land_run_vertical_control(bool pause_descent)
                     looking_tries++;
                     if (!is_zero(last_meas.z)) {
                         copter.precland.get_target_position_measurement_cm(last_meas);
-                        set_alt = last_meas.z;
+                        if (last_meas.z > (copter.precland._stop_search_alt*100)) { // Just in case marker detection gives garbage values 
+                            set_alt = last_meas.z;
+                        }
+                        else { // Then just give the user's prefered value
+                            set_alt = copter.precland._search_alt*100;
+                            last_meas.z = 0;
+                        }
                     }
                     else {
                         set_alt = copter.precland._search_alt*100;
@@ -599,6 +605,9 @@ void Mode::land_run_vertical_control(bool pause_descent)
         }
         else if (!(get_alt_above_ground_cm() > (copter.precland._stop_search_alt*100))) {
             always_land = true;
+
+            search_beacon = false;
+            prev_psc_cmd = true;
         }
 #endif  
     }
@@ -607,7 +616,8 @@ void Mode::land_run_vertical_control(bool pause_descent)
     // update altitude target and call position controller
     if (search_beacon) {
         // start the timer to measure the seconds have past to decide if we hover
-        if (fabs(set_alt - get_alt_above_ground_cm()) > 20.0f && start_hover == false) { // cm
+        if (fabs(set_alt - get_alt_above_ground_cm()) > 50.0f && start_hover == false) { // cm
+            // printf("remain:%f\n", fabs(set_alt - get_alt_above_ground_cm()));
             _last_update_beacon_ms = AP_HAL::millis64();
         }
         else {

@@ -3,7 +3,10 @@
 #include <GCS_MAVLink/GCS_MAVLink.h>
 #include <AP_Math/AP_Math.h>
 #include <unistd.h>
+
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include <iostream>
+#endif
 
 class Marker
 {

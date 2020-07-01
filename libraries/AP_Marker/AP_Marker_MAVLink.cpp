@@ -4,7 +4,10 @@
 #include <stdio.h>
 #include <utility>
 #include <AP_Logger/AP_Logger.h>
+
+#if CONFIG_HAL_BOARD == HAL_BOARD_SITL
 #include <iostream>
+#endif
 
 extern const AP_HAL::HAL& hal;
 
@@ -29,7 +32,7 @@ void AP_Marker_MAVLink::handle_msg(const mavlink_message_t &msg)
     _timestamp_us = packet.time_usec;
 
     _target_info.timestamp = AP_HAL::millis();
-    printf("%u\n", _target_info.timestamp);
+    // printf("%u\n", _target_info.timestamp);
     _target_info.pos_x = packet.x;
     _target_info.pos_y = packet.y;
     _target_info.pos_z = packet.z;

@@ -616,7 +616,7 @@ const struct LogStructure Copter::log_structure[] = {
 // @Field: Est: Type of estimator used
 #if PRECISION_LANDING == ENABLED
     { LOG_PRECLAND_MSG, sizeof(log_Precland),
-      "PL",    "QBBffffffffffI",    "TimeUS,Heal,TAcq,pX,pY,vX,vY,mX,mY,mZ,uX,uY,uZ,LastMeasUS", "s--ddmmddmmmms","F--00BB00BBBBC" },
+      "PL",    "QBBffffffffffI",    "TimeUS,Heal,TAcq,pX,pY,vX,vY,mX,mY,mZ,uX,uY,uZ,LastMeasUS", "s--ddmmddmmmms","F--00BBBBBBBBC" },
     { LOG_PRECLAND_BACKENDS_MSG, sizeof(log_Precland_Backends),
       "PLB",    "Qffffffffff",    "TimeUS,uXb,uYb,uZb,uXTb,uYTb,uZTb,pXb,pYb,pZb,distb", "smmmmmmmmmm","FBBBBBBBBBB" },
 #endif
